@@ -145,6 +145,8 @@ public class DeviceConfigFacadeTest {
                 .thenReturn(false);
         when(mResources.getBoolean(R.bool.ranging_error_streak_timer_enabled))
                 .thenReturn(true);
+        when(mResources.getBoolean(R.bool.uwb_disabled_until_first_toggle))
+                .thenReturn(false);
 
         when(mContext.getResources()).thenReturn(mResources);
 
@@ -219,6 +221,7 @@ public class DeviceConfigFacadeTest {
         assertEquals(10, mDeviceConfigFacade.getRxDataMaxPacketsToStore());
         assertEquals(false, mDeviceConfigFacade.isBackgroundRangingEnabled());
         assertEquals(true, mDeviceConfigFacade.isRangingErrorStreakTimerEnabled());
+        assertEquals(false, mDeviceConfigFacade.isUwbDisabledUntilFirstToggle());
     }
 
     /**
@@ -315,6 +318,8 @@ public class DeviceConfigFacadeTest {
                 anyBoolean())).thenReturn(true);
         when(DeviceConfig.getBoolean(anyString(), eq("ranging_error_streak_timer_enabled"),
                 anyBoolean())).thenReturn(false);
+        when(DeviceConfig.getBoolean(anyString(), eq("uwb_disabled_until_first_toggle"),
+                anyBoolean())).thenReturn(true);
 
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
         assertEquals(0, mDeviceConfigFacade.getPrimerFovDegree());
@@ -330,6 +335,7 @@ public class DeviceConfigFacadeTest {
         assertEquals(20, mDeviceConfigFacade.getRxDataMaxPacketsToStore());
         assertEquals(true, mDeviceConfigFacade.isBackgroundRangingEnabled());
         assertEquals(false, mDeviceConfigFacade.isRangingErrorStreakTimerEnabled());
+        assertEquals(true, mDeviceConfigFacade.isUwbDisabledUntilFirstToggle());
         when(DeviceConfig.getString(anyString(), eq("pose_source_type"),
                 anyString())).thenReturn("NONE");
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
