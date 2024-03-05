@@ -131,14 +131,7 @@ public class UwbServiceImpl extends IUwbAdapter.Stub {
         mUwbInjector.getUwbCountryCode().initialize();
         mUwbInjector.getUciLogModeStore().initialize();
         // Initialize the UCI stack at bootup.
-        boolean enabled = isUwbEnabled();
-        if (enabled && mUwbInjector.getDeviceConfigFacade().isUwbDisabledUntilFirstToggle()
-                && !isUwbFirstToggleDone()) {
-            // Disable uwb on first boot until the user explicitly toggles UWB on for the
-            // first time.
-            enabled = false;
-        }
-        mUwbServiceCore.setEnabled(enabled);
+        mUwbServiceCore.setEnabled(isUwbEnabled());
     }
 
     @Override
@@ -395,9 +388,6 @@ public class UwbServiceImpl extends IUwbAdapter.Stub {
     @Override
     public synchronized void setEnabled(boolean enabled) throws RemoteException {
         enforceUwbPrivilegedPermission();
-        if (mUwbInjector.getDeviceConfigFacade().isUwbDisabledUntilFirstToggle()) {
-            persistUwbFirstToggleDone();
-        }
         persistUwbToggleState(enabled);
         // Shell command from rooted shell, we allow UWB toggle on even if APM mode and
         // user restriction are on.
@@ -517,14 +507,6 @@ public class UwbServiceImpl extends IUwbAdapter.Stub {
 
     private void persistUwbToggleState(boolean enabled) {
         mUwbSettingsStore.put(UwbSettingsStore.SETTINGS_TOGGLE_STATE, enabled);
-    }
-
-    private boolean isUwbFirstToggleDone() {
-        return mUwbSettingsStore.get(UwbSettingsStore.SETTINGS_FIRST_TOGGLE_DONE);
-    }
-
-    private void persistUwbFirstToggleDone() {
-        mUwbSettingsStore.put(UwbSettingsStore.SETTINGS_FIRST_TOGGLE_DONE, true);
     }
 
     private boolean isUwbToggleEnabled() {

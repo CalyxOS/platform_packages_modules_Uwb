@@ -86,8 +86,6 @@ public class DeviceConfigFacade {
     private boolean mBackgroundRangingEnabled;
     // Flag to disable error streak timer when a session is ongoing.
     private boolean mRangingErrorStreakTimerEnabled;
-    // Flag to disable UWB until first toggle
-    private boolean mUwbDisabledUntilFirstToggle;
 
     public DeviceConfigFacade(Handler handler, Context context) {
         mContext = context;
@@ -250,12 +248,6 @@ public class DeviceConfigFacade {
                 DeviceConfig.NAMESPACE_UWB,
                 "ranging_error_streak_timer_enabled",
                 mContext.getResources().getBoolean(R.bool.ranging_error_streak_timer_enabled)
-        );
-
-        mUwbDisabledUntilFirstToggle = DeviceConfig.getBoolean(
-                DeviceConfig.NAMESPACE_UWB,
-                "uwb_disabled_until_first_toggle",
-                mContext.getResources().getBoolean(R.bool.uwb_disabled_until_first_toggle)
         );
 
         // A little parsing and cleanup:
@@ -496,14 +488,5 @@ public class DeviceConfigFacade {
      */
     public boolean isRangingErrorStreakTimerEnabled() {
         return mRangingErrorStreakTimerEnabled;
-    }
-
-    /**
-     * Returns whether to disable uwb until first toggle or not.
-     * If enabled, UWB will remain disabled on boot until the user toggles UWB on for the
-     * first time.
-     */
-    public boolean isUwbDisabledUntilFirstToggle() {
-        return mUwbDisabledUntilFirstToggle;
     }
 }
