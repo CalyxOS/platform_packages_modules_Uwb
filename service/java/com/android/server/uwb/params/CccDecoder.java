@@ -30,6 +30,7 @@ import static com.android.server.uwb.config.CapabilityParam.CCC_HOPPING_CONFIG_M
 import static com.android.server.uwb.config.CapabilityParam.CCC_HOPPING_CONFIG_MODE_NONE;
 import static com.android.server.uwb.config.CapabilityParam.CCC_HOPPING_SEQUENCE_AES;
 import static com.android.server.uwb.config.CapabilityParam.CCC_HOPPING_SEQUENCE_DEFAULT;
+import static com.android.server.uwb.config.CapabilityParam.CCC_PRIORITIZED_CHANNEL_LIST;
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_CHANNELS;
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_CHAPS_PER_SLOT;
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_HOPPING_CONFIG_MODES_AND_SEQUENCES;
@@ -58,12 +59,15 @@ import static com.google.uwb.support.ccc.CccParams.UWB_CHANNEL_9;
 
 import android.util.Log;
 
+import com.android.server.uwb.UwbInjector;
 import com.android.server.uwb.config.ConfigParam;
 
 import com.google.uwb.support.base.Params;
+import com.google.uwb.support.base.ProtocolVersion;
 import com.google.uwb.support.ccc.CccProtocolVersion;
 import com.google.uwb.support.ccc.CccPulseShapeCombo;
 import com.google.uwb.support.ccc.CccRangingStartedParams;
+import com.google.uwb.support.ccc.CccRangingStoppedParams;
 import com.google.uwb.support.ccc.CccSpecificationParams;
 
 import java.nio.ByteBuffer;
@@ -74,15 +78,24 @@ import java.nio.ByteOrder;
  */
 public class CccDecoder extends TlvDecoder {
     private static final String TAG = "CccDecoder";
+    private final UwbInjector mUwbInjector;
+
+    public CccDecoder(UwbInjector uwbInjector) {
+        mUwbInjector = uwbInjector;
+    }
 
     @Override
-    public <T extends Params> T getParams(TlvDecoderBuffer tlvs, Class<T> paramsType)
+    public <T extends Params> T getParams(TlvDecoderBuffer tlvs, Class<T> paramsType,
+            ProtocolVersion protocolVersion)
             throws IllegalArgumentException {
         if (CccRangingStartedParams.class.equals(paramsType)) {
             return (T) getCccRangingStartedParamsFromTlvBuffer(tlvs);
         }
         if (CccSpecificationParams.class.equals(paramsType)) {
             return (T) getCccSpecificationParamsFromTlvBuffer(tlvs);
+        }
+        if (CccRangingStoppedParams.class.equals(paramsType)) {
+            return (T) getCccRangingStoppedParamsFromTlvBuffer(tlvs);
         }
         return null;
     }
@@ -94,12 +107,21 @@ public class CccDecoder extends TlvDecoder {
     private CccRangingStartedParams getCccRangingStartedParamsFromTlvBuffer(TlvDecoderBuffer tlvs) {
         byte[] hopModeKey = tlvs.getByteArray(ConfigParam.HOP_MODE_KEY);
         int hopModeKeyInt = ByteBuffer.wrap(hopModeKey).order(ByteOrder.LITTLE_ENDIAN).getInt();
+        long uwbTime0;
+        // Backwards compatibility with vendors who were using Google defined
+        // UWB_TIME0 TLV param.
+        try {
+            uwbTime0 = tlvs.getLong(ConfigParam.UWB_TIME0);
+        } catch (IllegalArgumentException e) {
+            uwbTime0 = tlvs.getLong(ConfigParam.UWB_INITIATION_TIME);
+        }
+
         return new CccRangingStartedParams.Builder()
                 // STS_Index0  0 - 0x3FFFFFFFF
                 .setStartingStsIndex(tlvs.getInt(ConfigParam.STS_INDEX))
                 .setHopModeKey(hopModeKeyInt)
                 //  UWB_Time0 0 - 0xFFFFFFFFFFFFFFFF  UWB_INITIATION_TIME
-                .setUwbTime0(tlvs.getLong(ConfigParam.UWB_TIME0))
+                .setUwbTime0(uwbTime0)
                 // RANGING_INTERVAL = RAN_Multiplier * 96
                 .setRanMultiplier(tlvs.getInt(ConfigParam.RANGING_INTERVAL) / 96)
                 .setSyncCodeIndex(tlvs.getByte(ConfigParam.PREAMBLE_CODE_INDEX))
@@ -147,19 +169,40 @@ public class CccDecoder extends TlvDecoder {
         if (isBitSet(chapsPerslot, CCC_CHAPS_PER_SLOT_24)) {
             builder.addChapsPerSlot(CHAPS_PER_SLOT_24);
         }
-        // Don't use TlvDecodeBuffer#getInt() to avoid conversion to little endian.
-        int syncCodes = ByteBuffer.wrap(tlvs.getByteArray(CCC_SUPPORTED_SYNC_CODES)).getInt();
-        for (int i = 0; i < 32; i++) {
-            if (isBitSet(syncCodes, 1 << i)) {
-                builder.addSyncCode(i + 1);
+        if (mUwbInjector.getDeviceConfigFacade().isCccSupportedSyncCodesLittleEndian()) {
+            byte[] syncCodes = tlvs.getByteArray(CCC_SUPPORTED_SYNC_CODES);
+            for (int byteIndex = 0; byteIndex < syncCodes.length; byteIndex++) {
+                byte syncCodeByte = syncCodes[byteIndex];
+                for (int bitIndex = 0; bitIndex < 8; bitIndex++) {
+                    if ((syncCodeByte & (1 << bitIndex)) != 0) {
+                        int syncCodeValue = (byteIndex * 8) + bitIndex + 1;
+                        builder.addSyncCode(syncCodeValue);
+                    }
+                }
+            }
+        } else {
+            int syncCodes = ByteBuffer.wrap(tlvs.getByteArray(CCC_SUPPORTED_SYNC_CODES)).getInt();
+            for (int i = 0; i < 32; i++) {
+                if (isBitSet(syncCodes, 1 << i)) {
+                    builder.addSyncCode(i + 1);
+                }
             }
         }
-        byte channels = tlvs.getByte(CCC_SUPPORTED_CHANNELS);
-        if (isBitSet(channels, CCC_CHANNEL_5)) {
-            builder.addChannel(UWB_CHANNEL_5);
-        }
-        if (isBitSet(channels, CCC_CHANNEL_9)) {
-            builder.addChannel(UWB_CHANNEL_9);
+
+        try {
+            byte[] prioritizedChannels = tlvs.getByteArray(CCC_PRIORITIZED_CHANNEL_LIST);
+            for (byte prioritizedChannel : prioritizedChannels) {
+                builder.addChannel(prioritizedChannel);
+            }
+        } catch (IllegalArgumentException e) {
+            Log.w(TAG, "CCC_PRIORITIZED_CHANNEL_LIST not found");
+            byte channels = tlvs.getByte(CCC_SUPPORTED_CHANNELS);
+            if (isBitSet(channels, CCC_CHANNEL_5)) {
+                builder.addChannel(UWB_CHANNEL_5);
+            }
+            if (isBitSet(channels, CCC_CHANNEL_9)) {
+                builder.addChannel(UWB_CHANNEL_9);
+            }
         }
         byte hoppingConfigModesAndSequences =
                 tlvs.getByte(CCC_SUPPORTED_HOPPING_CONFIG_MODES_AND_SEQUENCES);
@@ -193,5 +236,12 @@ public class CccDecoder extends TlvDecoder {
             Log.w(TAG, "SUPPORTED_MIN_UWB_INITIATION_TIME_MS not found");
         }
         return builder.build();
+    }
+
+    private CccRangingStoppedParams getCccRangingStoppedParamsFromTlvBuffer(TlvDecoderBuffer tlvs) {
+        int lastStsIndexUsed = tlvs.getInt(ConfigParam.LAST_STS_INDEX_USED);
+        return new CccRangingStoppedParams.Builder()
+                .setLastStsIndexUsed(lastStsIndexUsed)
+                .build();
     }
 }

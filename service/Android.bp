@@ -23,11 +23,6 @@ java_defaults {
     errorprone: {
         javacflags: ["-Xep:CheckReturnValue:ERROR"],
     },
-    product_variables: {
-        pdk: {
-            enabled: false,
-        },
-    },
 }
 
 filegroup {
@@ -60,6 +55,7 @@ java_library {
         "framework-statsd.stubs.module_lib",
         "framework-wifi.stubs.module_lib",
         "framework-bluetooth.stubs.module_lib",
+        "framework-location.stubs.module_lib",
     ],
 
     static_libs: [
@@ -71,6 +67,7 @@ java_library {
         "com.uwb.support.profile",
         "com.uwb.support.oemextension",
         "com.uwb.support.dltdoa",
+        "com.uwb.support.radar",
         "guava",
         "modules-utils-shell-command-handler",
         "modules-utils-handlerexecutor",
@@ -80,6 +77,7 @@ java_library {
         "modules-utils-build",
         "cbor-java",
         "bouncycastle-uwb",
+        "uwb_flags_lib",
     ],
 
     apex_available: [
