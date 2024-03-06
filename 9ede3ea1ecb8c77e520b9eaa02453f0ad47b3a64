@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "9696ac5b_9e74dde5",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2024-03-06T23:21:52Z",
+      "side": 1,
+      "message": "This is fine because it\u0027s present in QPR2",
+      "revId": "9ede3ea1ecb8c77e520b9eaa02453f0ad47b3a64",
+      "serverId": "35266860-6252-469c-a67d-185064479fc0"
+    }
+  ]
+}
