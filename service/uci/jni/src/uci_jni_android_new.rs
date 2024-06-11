@@ -76,7 +76,7 @@ pub extern "system" fn Java_com_android_server_uwb_jni_NativeUwbManager_nativeIn
     logger::init(
         logger::Config::default()
             .with_tag_on_device("uwb")
-            .with_min_level(log::Level::Trace)
+            .with_max_level(log::LevelFilter::Trace)
             .with_filter("trace,jni=info"),
     );
     debug!("{}: enter", function_name!());
@@ -1214,6 +1214,60 @@ fn native_query_data_size(
     let uci_manager = Dispatcher::get_uci_manager(env, obj, chip_id)
         .map_err(|_| Error::ForeignFunctionInterface)?;
     uci_manager.session_query_max_data_size(session_id as u32)
+}
+
+/// Set data transfer phase configuration
+#[no_mangle]
+pub extern "system" fn Java_com_android_server_uwb_jni_NativeUwbManager_nativeSessionDataTransferPhaseConfig(
+    env: JNIEnv,
+    obj: JObject,
+    session_id: jint,
+    dtpcm_repetition: jbyte,
+    data_transfer_control: jbyte,
+    dtpml_size: jbyte,
+    mac_address: jbyteArray,
+    slot_bitmap: jbyteArray,
+    chip_id: JString,
+) -> jbyte {
+    debug!("{}: enter", function_name!());
+    byte_result_helper(
+        native_session_data_transfer_phase_config(
+            env,
+            obj,
+            session_id,
+            dtpcm_repetition,
+            data_transfer_control,
+            dtpml_size,
+            mac_address,
+            slot_bitmap,
+            chip_id,
+        ),
+        function_name!(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn native_session_data_transfer_phase_config(
+    env: JNIEnv,
+    obj: JObject,
+    session_id: jint,
+    dtpcm_repetition: jbyte,
+    data_transfer_control: jbyte,
+    dtpml_size: jbyte,
+    mac_address: jbyteArray,
+    slot_bitmap: jbyteArray,
+    chip_id: JString,
+) -> Result<()> {
+    let uci_manager = Dispatcher::get_uci_manager(env, obj, chip_id)
+        .map_err(|_| Error::ForeignFunctionInterface)?;
+    uci_manager.session_data_transfer_phase_config(
+        session_id as u32,
+        dtpcm_repetition as u8,
+        data_transfer_control as u8,
+        dtpml_size as u8,
+        env.convert_byte_array(mac_address).map_err(|_| Error::ForeignFunctionInterface)?,
+        env.convert_byte_array(slot_bitmap).map_err(|_| Error::ForeignFunctionInterface)?,
+    )
 }
 
 /// Get UWBS timestamp, Return 0 if failed.

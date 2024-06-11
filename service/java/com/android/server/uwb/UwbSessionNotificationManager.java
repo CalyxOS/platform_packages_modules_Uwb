@@ -41,6 +41,8 @@ import com.android.server.uwb.data.UwbUciConstants;
 import com.android.server.uwb.params.TlvUtil;
 import com.android.server.uwb.util.UwbUtil;
 
+import com.google.uwb.support.aliro.AliroParams;
+import com.google.uwb.support.aliro.AliroRangingReconfiguredParams;
 import com.google.uwb.support.base.Params;
 import com.google.uwb.support.ccc.CccParams;
 import com.google.uwb.support.ccc.CccRangingReconfiguredParams;
@@ -173,6 +175,23 @@ public class UwbSessionNotificationManager {
         }
     }
 
+    public void onRangingStartFailedWithUciReasonCode(UwbSession uwbSession, int reasonCode)  {
+        SessionHandle sessionHandle = uwbSession.getSessionHandle();
+        IUwbRangingCallbacks uwbRangingCallbacks = uwbSession.getIUwbRangingCallbacks();
+        try {
+            int statusCode =
+                    UwbSessionNotificationHelper.convertUciReasonCodeToUciStatusCode(reasonCode);
+            uwbRangingCallbacks.onRangingStartFailed(sessionHandle,
+                    UwbSessionNotificationHelper.convertUciReasonCodeToApiReasonCode(reasonCode),
+                    UwbSessionNotificationHelper.convertUciStatusToParam(
+                            uwbSession.getProtocolName(), statusCode));
+            Log.i(TAG, "IUwbRangingCallbacks - onRangingStartFailedWithUciReasonCode");
+        } catch (Exception e) {
+            Log.e(TAG, "IUwbRangingCallbacks - onRangingStartFailedWithUciReasonCode : Failed");
+            e.printStackTrace();
+        }
+    }
+
     private void onRangingStoppedInternal(UwbSession uwbSession, int reason,
             PersistableBundle params)  {
         SessionHandle sessionHandle = uwbSession.getSessionHandle();
@@ -230,6 +249,9 @@ public class UwbSessionNotificationManager {
         if (Objects.equals(uwbSession.getProtocolName(), CccParams.PROTOCOL_NAME)) {
             // Why are there no params defined for this bundle?
             params = new CccRangingReconfiguredParams.Builder().build().toBundle();
+        } else if (Objects.equals(uwbSession.getProtocolName(), AliroParams.PROTOCOL_NAME)) {
+            // Why are there no params defined for this bundle?
+            params = new AliroRangingReconfiguredParams.Builder().build().toBundle();
         } else {
             // No params defined for FiRa reconfigure.
             params = new PersistableBundle();
@@ -459,6 +481,34 @@ public class UwbSessionNotificationManager {
             Log.i(TAG, "IUwbRangingCallbacks - onDataSendFailed");
         } catch (Exception e) {
             Log.e(TAG, "IUwbRangingCallbacks - onDataSendFailed : Failed");
+            e.printStackTrace();
+        }
+    }
+
+    /** Notify that data transfer phase config setting is successful. */
+    public void onDataTransferPhaseConfigured(UwbSession uwbSession,
+            PersistableBundle parameters) {
+        SessionHandle sessionHandle = uwbSession.getSessionHandle();
+        IUwbRangingCallbacks uwbRangingCallbacks = uwbSession.getIUwbRangingCallbacks();
+        try {
+            uwbRangingCallbacks.onDataTransferPhaseConfigured(sessionHandle, parameters);
+            Log.i(TAG, "IUwbRangingCallbacks - onDataTransferPhaseConfigured");
+        } catch (Exception e) {
+            Log.e(TAG, "IUwbRangingCallbacks - onDataTransferPhaseConfigured : Failed");
+            e.printStackTrace();
+        }
+    }
+
+    /** Notify that data transfer phase config setting is failed. */
+    public void onDataTransferPhaseConfigFailed(UwbSession uwbSession,
+            PersistableBundle parameters) {
+        SessionHandle sessionHandle = uwbSession.getSessionHandle();
+        IUwbRangingCallbacks uwbRangingCallbacks = uwbSession.getIUwbRangingCallbacks();
+        try {
+            uwbRangingCallbacks.onDataTransferPhaseConfigFailed(sessionHandle, parameters);
+            Log.i(TAG, "IUwbRangingCallbacks - onDataTransferPhaseConfigFailed");
+        } catch (Exception e) {
+            Log.e(TAG, "IUwbRangingCallbacks - onDataTransferPhaseConfigFailed : Failed");
             e.printStackTrace();
         }
     }

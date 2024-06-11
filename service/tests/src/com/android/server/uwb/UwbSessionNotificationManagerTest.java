@@ -47,7 +47,6 @@ import android.platform.test.annotations.Presubmit;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
-import android.test.suitebuilder.annotation.SmallTest;
 import android.util.Pair;
 import android.uwb.IUwbOemExtensionCallback;
 import android.uwb.IUwbRangingCallbacks;
@@ -55,6 +54,7 @@ import android.uwb.RangingChangeReason;
 import android.uwb.RangingReport;
 import android.uwb.SessionHandle;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.uwb.data.UwbRadarData;
@@ -433,6 +433,18 @@ public class UwbSessionNotificationManagerTest {
     }
 
     @Test
+    public void testOnRangingStartFailedWithUciReasonCode() throws Exception {
+        int reasonCode =  UwbUciConstants.REASON_ERROR_SESSION_KEY_NOT_FOUND;
+        mUwbSessionNotificationManager.onRangingStartFailedWithUciReasonCode(
+                mUwbSession, reasonCode);
+
+        int expectedStatusCode = UwbUciConstants.STATUS_CODE_ERROR_SESSION_NOT_EXIST;
+        verify(mIUwbRangingCallbacks).onRangingStartFailed(eq(mSessionHandle),
+                eq(RangingChangeReason.PROTOCOL_SPECIFIC),
+                argThat(p -> (p.getInt("status_code")) == expectedStatusCode));
+    }
+
+    @Test
     public void testOnRangingStoppedWithUciReasonCode_reasonLocalApi() throws Exception {
         int reasonCode = UwbUciConstants.REASON_STATE_CHANGE_WITH_SESSION_MANAGEMENT_COMMANDS;
         mUwbSessionNotificationManager.onRangingStoppedWithUciReasonCode(mUwbSession, reasonCode);
@@ -644,6 +656,24 @@ public class UwbSessionNotificationManagerTest {
         verify(mIUwbRangingCallbacks).onDataSendFailed(eq(mSessionHandle), eq(
                         PEER_EXTENDED_UWB_ADDRESS),
                 eq(STATUS_CODE_FAILED), eq(PERSISTABLE_BUNDLE));
+    }
+
+    @Test
+    public void testOnDataTransferPhaseConfigured() throws Exception {
+        mUwbSessionNotificationManager.onDataTransferPhaseConfigured(mUwbSession,
+                PERSISTABLE_BUNDLE);
+
+        verify(mIUwbRangingCallbacks).onDataTransferPhaseConfigured(eq(mSessionHandle),
+                eq(PERSISTABLE_BUNDLE));
+    }
+
+    @Test
+    public void testOnDataTransferPhaseConfigFailed() throws Exception {
+        mUwbSessionNotificationManager.onDataTransferPhaseConfigFailed(mUwbSession,
+                PERSISTABLE_BUNDLE);
+
+        verify(mIUwbRangingCallbacks).onDataTransferPhaseConfigFailed(eq(mSessionHandle),
+                eq(PERSISTABLE_BUNDLE));
     }
 
     @Test
